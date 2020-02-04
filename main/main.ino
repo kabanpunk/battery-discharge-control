@@ -6,7 +6,7 @@ void printFloat(float f, uint8_t C = 0x00) {
 
   if (C == 0x00) { 
     String ns = delzeros(String(sr(f, 4 - tip)));
-    Serial.println(ns);
+    //Serial.println(ns);
     ns.remove(ns.indexOf('.'), 1);
     int N = ns.length();
     int c = 0;
@@ -22,8 +22,8 @@ void printFloat(float f, uint8_t C = 0x00) {
     if (N > 3) {
       data[0] = display.encodeDigit(int(ns[N - 4])); c++;
     }
-    Serial.println("di: " + String(di) + "; c: " + String(c));
-    if (di > 0)
+    //Serial.println("di: " + String(di) + "; c: " + String(c));
+    if (di > 0 and int(f)!=f)
       data[ di + 3 - c] += 0x80;
     display.setSegments(data);
   }
@@ -40,7 +40,7 @@ void printFloat(float f, uint8_t C = 0x00) {
     if (N > 2) {
       data[0] = display.encodeDigit(int(ns[0]));
     }
-    if (di > 0)
+    if (di > 0 and int(f)!=f)
       data[ di - 1 ] += 0x80;
     display.setSegments(data);
   }
