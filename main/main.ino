@@ -31,6 +31,7 @@ String delzeros(String s) {
 }
 
 void printFloat(float f, uint8_t C = 0x00) {
+  f = abs(f);
   uint8_t data[] = { 0x00 , 0x00, 0x00, C };
   String s = String(f);
   int tip = String(int(f)).length();
@@ -105,17 +106,27 @@ void setup()
 }
 
 float amperage = 0;
-float voltage = 0;
+float voltage = 0; 
 float minutes = 0;
+int toggle = 0;
+float endTime = 0;
+bool activeToggle = false;
 
 void loop()
 {
-  voltage = ads.readADC_Differential_2_3() * 0.1875F / 1000.;
-  amperage = ads.readADC_Differential_0_1() * 0.015625F / 2.;
-  Serial.println("amperage: "+String(amperage)+"; voltage: "+String(voltage));
+  voltage = abs(ads.readADC_Differential_2_3() * 0.1875F / 1000.);
+  amperage = abs(ads.readADC_Differential_0_1() * 0.015625F / 2.);
+ 
+  if (activeToggle and voltage < 2.6) {
+    toggle = -1;
+    printFloat(endTime);
+    digitalWrite(5, LOW); 
+    return;
+  }
+  endTime = ( millis() - minutes ) / 60000.;
+  //Serial.println("amperage: " + String(amperage) + "; voltage: " + String(voltage));
 }
 
-int toggle = 0;
 ISR(TIMER1_COMPA_vect) {
   if (toggle == 0) {
     printFloat(amperage, A);
@@ -126,22 +137,36 @@ ISR(TIMER1_COMPA_vect) {
     toggle++;
   }
   else if (toggle == 2) {
-    if (minutes != 0)
-      printFloat( ( millis() - minutes ) / 60000.);
+    if (minutes != 0) {
+      printFloat(( millis() - minutes ) / 60000.);
+    }
     toggle = 0;
   }
 }
 
 bool falling = true;
+int countClicks = 0;
 void btn() {
   static unsigned long last_interrupt_time = 0;
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_interrupt_time > 25)
   {
-    if (falling) {
-      minutes = millis();
-      Serial.println(digitalRead(2));
+    if (falling) { 
       falling = false;
+      if (countClicks == 0) {
+        minutes = millis();
+        digitalWrite(5, HIGH);
+        toggle = 0;
+        activeToggle = true;
+        countClicks++;
+      }
+      else if (countClicks == 1) {
+        minutes = 0;
+        toggle = 0;
+        endTime = 0;
+        activeToggle = false;
+        countClicks = 0;
+      }
     }
     else {
       falling = true;
