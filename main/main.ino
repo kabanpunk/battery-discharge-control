@@ -89,11 +89,10 @@ void setup()
 
   //0.5HZ
   cli();
-  TCCR1A = 0;// set entire TCCR1A register to 0
-  TCCR1B = 0;// same for TCCR1B
-  TCNT1  = 0;//initialize counter value to 0
-  // set compare match register for 1hz increments
-  OCR1A = 31249;// = (16*10^6) / (COUNT_HZ *1024) - 1 (must be <65536)
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1  = 0;
+  OCR1A = 15624;//31249;// = (16*10^6) / (COUNT_HZ *1024) - 1 (must be <65536)
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
   // Set CS12 and CS10 bits for 1024 prescaler
@@ -106,7 +105,7 @@ void setup()
 }
 
 float amperage = 0;
-float voltage = 0; 
+float voltage = 0;
 float minutes = 0;
 int toggle = 0;
 float endTime = 0;
@@ -114,16 +113,18 @@ bool activeToggle = false;
 
 void loop()
 {
-  voltage = abs(ads.readADC_Differential_2_3() * 0.1875F / 1000.);
-  amperage = abs(ads.readADC_Differential_0_1() * 0.015625F / 2.);
- 
   if (activeToggle and voltage < 2.6) {
     toggle = -1;
     printFloat(endTime);
-    digitalWrite(5, LOW); 
-    return;
+    //Serial.println(String(activeToggle) + "; " + String(voltage));
+    digitalWrite(5, LOW);
   }
-  endTime = ( millis() - minutes ) / 60000.;
+  else {
+    endTime = ( millis() - minutes ) / 60000.;
+    voltage = abs(ads.readADC_Differential_2_3() * 0.1875F / 1000.);
+    amperage = abs(ads.readADC_Differential_0_1() * 0.015625F / 2.);
+  } 
+  //Serial.println("Time: " + String(endTime));
   //Serial.println("amperage: " + String(amperage) + "; voltage: " + String(voltage));
 }
 
@@ -151,8 +152,9 @@ void btn() {
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_interrupt_time > 25)
   {
-    if (falling) { 
+    if (falling) {
       falling = false;
+      Serial.println(countClicks);
       if (countClicks == 0) {
         minutes = millis();
         digitalWrite(5, HIGH);
