@@ -1,3 +1,5 @@
+float VOLTAGE_THRESHOLD = 2.6;  
+
 #include <Arduino.h>
 #include <TM1637Display.h>
 #include <Wire.h>
@@ -19,71 +21,48 @@ const uint8_t t = SEG_E | SEG_F | SEG_G | SEG_D;
 TM1637Display display(CLK, DIO);
 
 float sr(float f, int n) {
-  return round(f * pow(10, n)) / pow(10, n);
+  return round(f * pow(10, n)) / pow(10, n) / 1.;
 }
 
-String delzeros(String s) {
-  for (int i = s.length() - 1; i > 0; i--) {
-    if (s[i] == '.') break;
-    if (s[i] == '0') s.remove(i);
+String remove_zeros(String s, int l) { 
+  if (s[s.length() - 1] == '0' and s[s.length() - 2] == '0'){ //((s.indexOf('.') !=  s.length() - 2 ? s.length() : s.length()  - 1) <= l) { 
+      s.remove(s.length() - 1); 
+    return s;
+  } 
+  int i = s.length() - 1;
+  while (i > 0 and (s[i] == '0' or s[i] == '.')) { 
+    if (s[i] == '.') {
+      s.remove(i);
+      break;
+    }
+    s.remove(i);
+    i -= 1;
   }
   return s;
 }
 
-void printFloat(float f, uint8_t C = 0x00) {
-  f = abs(f);
+void printFloat(float x, int l, uint8_t C = 0x00) {
   uint8_t data[] = { 0x00 , 0x00, 0x00, C };
-  String s = String(f);
-  int tip = String(int(f)).length();
-  int di = s.indexOf('.');
+  String s = String( sr( x, l - String(int(x)).length() ) );
 
-  if (C == 0x00) {
-    String ns = delzeros(String(sr(f, 4 - tip)));
-    //Serial.println(ns);
-    ns.remove(ns.indexOf('.'), 1);
-    int N = ns.length();
-    int c = 0;
-    if (N > 0) {
-      data[3] = display.encodeDigit(int(ns[N - 1])); c++;
+  s = remove_zeros(s, l); 
+  int i = l - 1, j = s.length() - 1;
+  while (i >= 0 and j >= 0) {
+    if (s[j] == '.') {
+      data[i] += 0x80;
+      j -= 1;
     }
-    if (N > 1) {
-      data[2] = display.encodeDigit(int(ns[N - 2])); c++;
-    }
-    if (N > 2) {
-      data[1] = display.encodeDigit(int(ns[N - 3])); c++;
-    }
-    if (N > 3) {
-      data[0] = display.encodeDigit(int(ns[N - 4])); c++;
-    }
-    //Serial.println("di: " + String(di) + "; c: " + String(c));
-    if (di > 0 and int(f) != f)
-      data[ di + 3 - c] += 0x80;
-    display.setSegments(data);
+    data[i] += display.encodeDigit(int(s[j]));
+    i -= 1;
+    j -= 1;
   }
-  else {
-    String ns = String(sr(f, 4 - di));
-    ns.remove(ns.indexOf('.'), 1);
-    int N = ns.length();
-    if (N > 0) {
-      data[2] = display.encodeDigit(int(ns[2]));
-    }
-    if (N > 1) {
-      data[1] = display.encodeDigit(int(ns[1]));
-    }
-    if (N > 2) {
-      data[0] = display.encodeDigit(int(ns[0]));
-    }
-    if (di > 0 and int(f) != f)
-      data[ di - 1 ] += 0x80;
-    display.setSegments(data);
-  }
+  display.setSegments(data);
 }
 
 void setup()
 {
   Serial.begin(9600);
-  display.setBrightness(0x0f);
-
+  display.setBrightness(0x0f); 
   pinMode(2, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(2), btn, FALLING );
 
@@ -102,76 +81,93 @@ void setup()
   sei();
 
   ads.begin();
+  Serial.println("Ожидание начала цикла");
 }
 
 float amperage = 0;
 float voltage = 0;
-float minutes = 0;
-int toggle = 0;
-float endTime = 0;
-bool activeToggle = false;
+bool toggle = false;
+long work_time = 0;
+bool end_of_cycle_check = false;
+long cycle_start_time = 0;
+float cycle_end_time = 0;
 
 void loop()
 {
-  if (activeToggle and voltage < 2.6) {
-    toggle = -1;
-    printFloat(endTime);
-    //Serial.println(String(activeToggle) + "; " + String(voltage));
-    digitalWrite(5, LOW);
+  voltage = abs(ads.readADC_Differential_2_3() * 0.1875F / 1000.);
+  amperage = abs(ads.readADC_Differential_0_1() * 0.015625F / 2.);
+
+  if (toggle and !end_of_cycle_check and voltage < VOLTAGE_THRESHOLD) {
+    cycle_end_time = (millis() - cycle_start_time) / 60000.;
+    toggle = false;
+    end_of_cycle_check = true;
+  }
+  if (toggle) {
+    digitalWrite(5, HIGH);
   }
   else {
-    endTime = ( millis() - minutes ) / 60000.;
-    voltage = abs(ads.readADC_Differential_2_3() * 0.1875F / 1000.);
-    amperage = abs(ads.readADC_Differential_0_1() * 0.015625F / 2.);
-  } 
-  //Serial.println("Time: " + String(endTime));
-  //Serial.println("amperage: " + String(amperage) + "; voltage: " + String(voltage));
-}
-
-ISR(TIMER1_COMPA_vect) {
-  if (toggle == 0) {
-    printFloat(amperage, A);
-    toggle++;
-  }
-  else if (toggle == 1) {
-    printFloat(voltage, V);
-    toggle++;
-  }
-  else if (toggle == 2) {
-    if (minutes != 0) {
-      printFloat(( millis() - minutes ) / 60000.);
-    }
-    toggle = 0;
+    digitalWrite(5, LOW);
   }
 }
 
-bool falling = true;
-int countClicks = 0;
+int screen_counter = 0;
+void flipping_screens(int mode = 0) {
+  if (screen_counter == 0) {
+    screen_counter ++;
+    printFloat(voltage, 3, V);
+  }
+  else if (screen_counter == 1) {
+    screen_counter ++;
+    printFloat(amperage, 3, A);
+    if (mode == 0)
+      screen_counter = 0;
+  }
+  else {
+    screen_counter = 0;
+    printFloat((millis() - cycle_start_time) / 60000., 4);
+  }
+}
+
+ISR(TIMER1_COMPA_vect) { 
+  if (end_of_cycle_check) {
+    Serial.println("Конец цикла");
+    Serial.println("Время: " + String(cycle_end_time));
+    printFloat(cycle_end_time, 4);
+  }
+  else if (toggle) {
+    Serial.println("Режим разрядки");
+    Serial.println("Напряжение: " + String(voltage) + "; Сила тока: " + amperage + "; Время: " + String((millis() - cycle_start_time) / 60000.));
+    flipping_screens(1);
+  }
+  else {
+    Serial.println("Режим ожидания");
+    Serial.println("Напряжение: " + String(voltage) + "; Сила тока: " + amperage);
+    flipping_screens(0);
+  }
+  Serial.println("------------------\n"); 
+}
+
 void btn() {
   static unsigned long last_interrupt_time = 0;
   unsigned long interrupt_time = millis();
-  if (interrupt_time - last_interrupt_time > 25)
+  if (interrupt_time - last_interrupt_time > 50)
   {
-    if (falling) {
-      falling = false;
-      Serial.println(countClicks);
-      if (countClicks == 0) {
-        minutes = millis();
-        digitalWrite(5, HIGH);
-        toggle = 0;
-        activeToggle = true;
-        countClicks++;
-      }
-      else if (countClicks == 1) {
-        minutes = 0;
-        toggle = 0;
-        endTime = 0;
-        activeToggle = false;
-        countClicks = 0;
-      }
+    if (end_of_cycle_check) {
+      end_of_cycle_check = false;
+      toggle = false;
+      Serial.println("Ожидание начала цикла");
     }
-    else {
-      falling = true;
+    else if (amperage < 1) {
+      if (toggle) {
+        toggle = false;
+        Serial.println("Режим сменён на " + String(toggle) + " (0 - батарея не разрежается; 1 - разрежается)");
+      }
+      else {
+        end_of_cycle_check = false;
+        cycle_start_time = millis();
+        toggle = true;
+        Serial.println("Режим сменён на " + String(toggle) + " (0 - батарея не разрежается; 1 - разрежается)");
+      }
     }
   }
   last_interrupt_time = interrupt_time;
