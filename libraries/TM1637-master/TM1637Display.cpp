@@ -23,6 +23,7 @@ extern "C" {
 
 #include <TM1637Display.h>
 #include <Arduino.h>
+#include <String.h>
 
 #define TM1637_I2C_COMM1    0x40
 #define TM1637_I2C_COMM2    0xC0
@@ -254,4 +255,45 @@ void TM1637Display::showDots(uint8_t dots, uint8_t* digits)
 uint8_t TM1637Display::encodeDigit(uint8_t digit)
 {
 	return digitToSegment[digit & 0x0f];
+}
+
+//! CASTOM BLOCK
+
+float TM1637Display::sr(float f, int n) {
+  return round(f * pow(10, n)) / pow(10, n) / 1.;
+}
+
+String TM1637Display::remove_zeros(String s) {
+  if (s[s.length() - 1] == '0' and s[s.length() - 2] == '0') { //((s.indexOf('.') !=  s.length() - 2 ? s.length() : s.length()  - 1) <= l) {
+    s.remove(s.length() - 1);
+    return s;
+  }
+  int i = s.length() - 1;
+  while (i > 0 and (s[i] == '0' or s[i] == '.')) {
+    if (s[i] == '.') {
+      s.remove(i);
+      break;
+    }
+    s.remove(i);
+    i -= 1;
+  }
+  return s;
+}
+
+void TM1637Display::printFloat(float x, int l, uint8_t C = 0) {
+  uint8_t data[] = { 0x00 , 0x00, 0x00, C };
+  String s = String( sr( x, l - String(int(x)).length() ) );
+
+  s = remove_zeros(s);
+  int i = l - 1, j = s.length() - 1;
+  while (i >= 0 and j >= 0) {
+    if (s[j] == '.') {
+      data[i] += 0x80;
+      j -= 1;
+    }
+    data[i] += encodeDigit(int(s[j]));
+    i -= 1;
+    j -= 1;
+  }
+  setSegments(data);
 }
