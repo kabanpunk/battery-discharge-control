@@ -18,6 +18,7 @@
 #define __TM1637DISPLAY__
 
 #include <inttypes.h>
+#include <Arduino.h>
 
 #define SEG_A   0b00000001
 #define SEG_B   0b00000010
@@ -141,6 +142,9 @@ public:
   //! @return A code representing the 7 segment image of the digit (LSB - segment A;
   //!         bit 6 - segment G; bit 7 - always zero)
   uint8_t encodeDigit(uint8_t digit);
+  
+  //! CASTOM BLOCK
+  void printFloat(float x, int l, uint8_t C = 0x00);
 
 protected:
    void bitDelay();
@@ -154,6 +158,11 @@ protected:
    void showDots(uint8_t dots, uint8_t* digits);
    
    void showNumberBaseEx(int8_t base, uint16_t num, uint8_t dots = 0, bool leading_zero = false, uint8_t length = 4, uint8_t pos = 0);
+   
+   //! CASTOM BLOCK
+   float sr(float f, int n);
+   String remove_zeros(String s);
+   
 
 
 private:
