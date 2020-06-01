@@ -5,6 +5,8 @@
 
 Adafruit_ADS1115 ads;
 
+//КОЭФФИЦИЕНТЫ ДЛЯ РАСЧЕТОВ МЕНЯТЬ В 155-156 СТРОКАХ
+
 double VOLTAGE_THRESHOLD = 2.6;  // ПОРОГ НАПРЯЖЕНИЯ
 double CAPACITY_THRESHOLD  = 0.05; // ЁМКОСТЬ НА КОТОРОЙ ПРОВОДИТСЯ ЗАМЕР
 
