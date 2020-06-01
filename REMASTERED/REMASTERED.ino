@@ -5,7 +5,6 @@
 
 Adafruit_ADS1115 ads;
 
-
 double VOLTAGE_THRESHOLD = 2.6;  // ПОРОГ НАПРЯЖЕНИЯ
 double CAPACITY_THRESHOLD  = 0.05; // ЁМКОСТЬ НА КОТОРОЙ ПРОВОДИТСЯ ЗАМЕР
 
