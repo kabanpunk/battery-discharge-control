@@ -1,5 +1,5 @@
-#define THRESHOLD_VOLTAGE 3
-#define THRESHOLD_CAPACIRY 1
+#define THRESHOLD_VOLTAGE 3.5
+#define THRESHOLD_CAPACIRY 10
 
 #include <Arduino.h>
 #include <TM1637Display.h>
@@ -44,6 +44,7 @@ void setup()
   ads.begin();
 
   Serial.println("Ожидание начала цикла");
+  Serial.println("version 1.2.1");
 
 }
 
@@ -96,20 +97,29 @@ void loop()
       float sum_a = 0, sum_v = 0;
       int K = 20;  
 
+      Serial.println("discharge LOW"); 
       digitalWrite(5, LOW);
+      Serial.println("start wait 600000 ms"); 
+      Serial.println("current operationTime: " + String(operationTime, 6) + "; current startTime: " + String(startTime, 6) + "; current capaciry: " + String(capaciry, 6));
       delay(600000);
       startTime += 600000;
+      Serial.println("end wait 600000 ms"); 
+      Serial.println("current operationTime: " + String(operationTime, 6) + "; current startTime: " + String(startTime, 6) + "; current capaciry: " + String(capaciry, 6));
       
       sum_a = 0, sum_v = 0;
       for (int i = 0; i < K; i++) {
         sum_a += amperage;
         sum_v += voltage;
         update();
-      }
+      } 
       
       float middle_v1 = sum_v / K;
-      
+      Serial.println("sum_a: " + String(sum_a, 6) + "; sum_v: " + String(sum_v, 6) + "; middle_v1: " + String(middle_v1, 6));
+      Serial.println("discharge HIGH"); 
       digitalWrite(5, HIGH);
+      Serial.println("start wait 10000 ms"); 
+      delay(10000);
+      Serial.println("end wait 10000 ms"); 
       
       sum_a = 0, sum_v = 0;
       for (int i = 0; i < K; i++) {
@@ -118,6 +128,7 @@ void loop()
         update();
       }
       resistance = (middle_v1 - (sum_v / K)) / (sum_a / K) * 1000.; //милливольт
+      Serial.println("sum_a: " + String(sum_a, 6) + "; sum_v: " + String(sum_v, 6) + "; middle_v1: " + String(middle_v1, 6));
       Serial.println("Сопротивление: " + String(resistance, 6));
     }
   }
